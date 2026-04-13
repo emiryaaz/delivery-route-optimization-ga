@@ -2,14 +2,23 @@
 
 This project is developed for the Evolutionary Computing course.
 
-## Project Goal
-To optimize a delivery route using a Genetic Algorithm for a single-vehicle routing problem modeled as the Traveling Salesman Problem (TSP).
+## Objective
+To solve a single-vehicle delivery route optimization problem modeled as the Traveling Salesman Problem (TSP) using a Genetic Algorithm.
 
-## Planned Technologies
+## Planned Features
+- Genetic Algorithm based route optimization
+- Route visualization
+- Performance comparison with baseline methods
+- Streamlit-based user interface
+
+## Technologies
 - Python
 - NumPy
 - Matplotlib
 - Streamlit
 
-## Team
-- Your team members will be added here.
+## Project Structure
+- `ga/` -> core genetic algorithm components
+- `experiments/` -> parameter comparison and experimental scripts
+- `data/` -> datasets or coordinate sets
+- `docs/` -> report materials and notes
