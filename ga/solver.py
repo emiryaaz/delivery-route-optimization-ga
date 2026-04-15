@@ -1,7 +1,9 @@
+import random
+
 from ga.population import create_initial_population, rank_population
 from ga.operators import tournament_selection, ordered_crossover, swap_mutation
 from ga.utils import calculate_route_distance
-import random
+
 
 class GeneticTSPSolver:
     def __init__(
@@ -12,7 +14,8 @@ class GeneticTSPSolver:
         mutation_rate: float = 0.02,
         elitism_count: int = 2,
         tournament_size: int = 3,
-	seed: int | None = None
+        seed: int | None = None,
+        verbose: bool = True
     ):
         self.cities = cities
         self.population_size = population_size
@@ -21,6 +24,7 @@ class GeneticTSPSolver:
         self.elitism_count = elitism_count
         self.tournament_size = tournament_size
         self.seed = seed
+        self.verbose = verbose
 
         self.best_route = None
         self.best_distance = float("inf")
@@ -38,11 +42,10 @@ class GeneticTSPSolver:
             parent2 = tournament_selection(ranked_population, self.tournament_size)
 
             max_attempts = 10
-            attempts = 0
-
-            while parent2 == parent1 and attempts < max_attempts:
+            attempt = 0
+            while parent2 == parent1 and attempt < max_attempts:
                 parent2 = tournament_selection(ranked_population, self.tournament_size)
-                attempts += 1
+                attempt += 1
 
             child = ordered_crossover(parent1, parent2)
             child = swap_mutation(child, self.mutation_rate)
@@ -52,10 +55,10 @@ class GeneticTSPSolver:
         return next_generation
 
     def evolve(self):
-        population = create_initial_population(self.cities, self.population_size)
-
         if self.seed is not None:
             random.seed(self.seed)
+
+        population = create_initial_population(self.cities, self.population_size)
 
         for generation in range(self.generations):
             ranked_population = rank_population(population)
@@ -69,10 +72,11 @@ class GeneticTSPSolver:
 
             self.best_distance_history.append(self.best_distance)
 
-            print(
-                f"Generation {generation + 1}/{self.generations} "
-                f"- Best Distance: {self.best_distance:.2f}"
-            )
+            if self.verbose and ((generation + 1) % 10 == 0 or generation == 0):
+                print(
+                    f"Generation {generation + 1}/{self.generations} "
+                    f"- Best Distance: {self.best_distance:.2f}"
+                )
 
             population = self.create_next_generation(ranked_population)
 
