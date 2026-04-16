@@ -11,6 +11,19 @@ from ga.visualization import (
     figure_to_png_bytes
 )
 
+def save_experiment_dataframe(result_df, experiment_type):
+    os.makedirs("outputs", exist_ok=True)
+
+    if experiment_type == "Population Size":
+        output_path = "outputs/population_experiment_results.csv"
+    elif experiment_type == "Mutation Rate":
+        output_path = "outputs/mutation_experiment_results.csv"
+    else:
+        output_path = "outputs/generation_experiment_results.csv"
+
+    result_df.to_csv(output_path, index=False)
+    return output_path
+
 def summarize_results(distances):
     average_distance = sum(distances) / len(distances)
     best_distance = min(distances)
@@ -43,16 +56,19 @@ def run_experiment(
         for run in range(runs_per_setting):
             current_population_size = population_size
             current_mutation_rate = mutation_rate
+            current_generations = generations
 
             if experiment_type == "Population Size":
                 current_population_size = int(parameter_value)
             elif experiment_type == "Mutation Rate":
                 current_mutation_rate = float(parameter_value)
+            elif experiment_type == "Generation Count":
+                current_generations = int(parameter_value)
 
             solver = GeneticTSPSolver(
                 cities=cities,
                 population_size=current_population_size,
-                generations=generations,
+                generations=current_generations,
                 mutation_rate=current_mutation_rate,
                 elitism_count=elitism_count,
                 tournament_size=tournament_size,
@@ -226,25 +242,130 @@ with tab2:
             "Run the experiment script first to generate outputs/population_experiment_results.csv."
         )
 
+    st.divider()
+    st.subheader("Generation Count Experiment Results")
+
+    generation_csv_path = "outputs/generation_experiment_results.csv"
+
+    if os.path.exists(generation_csv_path):
+        generation_df = pd.read_csv(generation_csv_path)
+
+        st.write("The table below shows the results of repeated GA runs for different generation counts.")
+        st.dataframe(generation_df, use_container_width=True)
+
+        generation_csv_bytes = generation_df.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label="Download Generation Experiment Results (CSV)",
+            data=generation_csv_bytes,
+            file_name="generation_experiment_results.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
+
+        if "parameter_value" in generation_df.columns and "average_best_distance" in generation_df.columns:
+            st.subheader("Average Best Distance by Generation Count")
+            chart_df = generation_df[["parameter_value", "average_best_distance"]].rename(
+                columns={"parameter_value": "generation_count"}
+            ).set_index("generation_count")
+            st.line_chart(chart_df)
+    else:
+        st.warning(
+            "Generation experiment results file not found. "
+            "Run the experiment from the Streamlit interface first."
+        )
+
 with tab3:
     st.subheader("Run Experiments Inside Streamlit")
 
     experiment_type = st.selectbox(
         "Experiment Type",
-        ["Population Size", "Mutation Rate"]
+        ["Population Size", "Mutation Rate","Generation Count"]
     )
 
     col1, col2 = st.columns(2)
 
-    with col1:
-        exp_num_cities = st.slider("Number of Cities", min_value=5, max_value=50, value=15, step=1, key="exp_num_cities")
-        exp_generations = st.slider("Generations", min_value=10, max_value=500, value=200, step=10, key="exp_generations")
-        exp_runs = st.slider("Runs Per Setting", min_value=1, max_value=5, value=3, step=1, key="exp_runs")
+with col1:
+    exp_num_cities = st.slider(
+        "Number of Cities",
+        min_value=5,
+        max_value=50,
+        value=15,
+        step=1,
+        key="exp_num_cities"
+    )
 
-    with col2:
-        exp_population_size = st.slider("Base Population Size", min_value=10, max_value=300, value=100, step=10, key="exp_population_size")
-        exp_mutation_rate = st.slider("Base Mutation Rate", min_value=0.001, max_value=0.2, value=0.02, step=0.001, key="exp_mutation_rate")
-        exp_city_seed = st.number_input("City Seed", min_value=0, value=42, step=1, key="exp_city_seed")
+    if experiment_type != "Generation Count":
+        exp_generations = st.slider(
+            "Generations",
+            min_value=10,
+            max_value=500,
+            value=200,
+            step=10,
+            key="exp_generations"
+        )
+    else:
+        exp_generations = 200
+
+    exp_runs = st.slider(
+        "Runs Per Setting",
+        min_value=1,
+        max_value=5,
+        value=3,
+        step=1,
+        key="exp_runs"
+    )
+
+with col2:
+    exp_city_seed = st.number_input(
+        "City Seed",
+        min_value=0,
+        value=42,
+        step=1,
+        key="exp_city_seed"
+    )
+
+    if experiment_type == "Population Size":
+        exp_mutation_rate = st.slider(
+            "Base Mutation Rate",
+            min_value=0.001,
+            max_value=0.2,
+            value=0.02,
+            step=0.001,
+            key="exp_mutation_rate"
+        )
+        exp_population_size = 100
+        st.caption("Population size values will be taken from the list below.")
+
+    elif experiment_type == "Mutation Rate":
+        exp_population_size = st.slider(
+            "Base Population Size",
+            min_value=10,
+            max_value=300,
+            value=100,
+            step=10,
+            key="exp_population_size"
+        )
+        exp_mutation_rate = 0.02
+        st.caption("Mutation rate values will be taken from the list below.")
+
+    elif experiment_type == "Generation Count":
+        exp_population_size = st.slider(
+            "Base Population Size",
+            min_value=10,
+            max_value=300,
+            value=100,
+            step=10,
+            key="exp_population_size"
+        )
+        exp_mutation_rate = st.slider(
+            "Base Mutation Rate",
+            min_value=0.001,
+            max_value=0.2,
+            value=0.02,
+            step=0.001,
+            key="exp_mutation_rate"
+        )
+        st.caption("Generation values will be taken from the list below.")
 
     st.markdown("### Parameter Values to Test")
 
@@ -253,10 +374,15 @@ with tab3:
             "Enter population sizes separated by commas",
             value="20,50,100,150,200"
         )
-    else:
+    elif experiment_type == "Mutation Rate":
         parameter_text = st.text_input(
             "Enter mutation rates separated by commas",
             value="0.005,0.01,0.02,0.05,0.1"
+        )
+    else:
+        parameter_text= st.text_input(
+            "Enter generation counts separated by commas",
+            value="50,100,150,200,300"
         )
 
     run_experiment_button = st.button("Run Experiment", use_container_width=True)
@@ -265,8 +391,10 @@ with tab3:
         try:
             if experiment_type == "Population Size":
                 parameter_values = [int(x.strip()) for x in parameter_text.split(",") if x.strip()]
-            else:
+            elif experiment_type == "Mutation Rate":
                 parameter_values = [float(x.strip()) for x in parameter_text.split(",") if x.strip()]
+            else:
+                parameter_values = [int(x.strip()) for x in parameter_text.split(",") if x.strip()]
 
             if not parameter_values:
                 st.error("Please enter at least one parameter value.")
@@ -285,7 +413,8 @@ with tab3:
                         runs_per_setting=exp_runs
                     )
 
-                st.success("Experiment completed.")
+                saved_path = save_experiment_dataframe(result_df, experiment_type)
+                st.success(f"Experiment completed and saved to {saved_path}")
 
                 st.subheader("Experiment Table")
                 st.dataframe(result_df, use_container_width=True)
@@ -295,12 +424,12 @@ with tab3:
                 st.line_chart(chart_df)
 
                 csv_bytes = result_df.to_csv(index=False).encode("utf-8")
-                filename = (
-                    "population_experiment_streamlit.csv"
-                    if experiment_type == "Population Size"
-                    else "mutation_experiment_streamlit.csv"
-                )
-
+                if experiment_type == "Population Size":
+                    filename = "population_experiment_streamlit.csv"
+                elif experiment_type == "Mutation Rate":
+                    filename = "mutation_experiment_streamlit.csv"
+                else:
+                    filename = "generation_experiment_streamlit.csv"
                 st.download_button(
                     label="Download Results as CSV",
                     data=csv_bytes,
